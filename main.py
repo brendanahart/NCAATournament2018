@@ -1,5 +1,5 @@
-import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import numpy as np  # linear algebra
+import pandas as pd  # data processing, CSV file I/O (e.g. pd.read_csv)
 from sklearn.linear_model import LogisticRegression
 from sklearn.utils import shuffle
 from sklearn.model_selection import GridSearchCV
@@ -25,11 +25,11 @@ def main():
     df_seeds = pd.read_csv(data_dir + 'NCAATourneySeeds.csv')
     df_tour = pd.read_csv(data_dir + 'NCAATourneyCompactResults.csv')
     df_teams = pd.read_csv(data_dir + 'Teams.csv')
-    df_massey = pd.read_csv(data_dir + 'MasseyOrdinals.csv')
+    df_massey = pd.read_csv(data_dir + 'MasseyOrdinals_thru_2019_day_128.csv')
 
     # filter massey
     df_massey = df_massey[df_massey['RankingDayNum'] == 128]
-    df_massey = df_massey[df_massey['SystemName'].isin(['POM', 'SAG', 'MAS'])]
+    df_massey = df_massey[df_massey['SystemName'].isin(['POM', 'SAG', 'TRP', 'TRK', 'DOK'])]
 
     # view frame
     df_seeds.head()
@@ -52,31 +52,50 @@ def main():
     df_lossseeds_mass = df_massey.rename(columns={'TeamID': 'LTeamID'})
 
     # Merge POM
-    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'POM') & (df_winseeds_mass.Season < 2014)]
+    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'POM')]
     df_concat = pd.merge(df_tour, df_temp[['Season', 'WTeamID', 'OrdinalRank']], how='left', on=['Season', 'WTeamID'])
 
-    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'POM') & (df_lossseeds_mass.Season < 2014)]
+    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'POM')]
     df_concat = pd.merge(df_concat, df_temp[['Season', 'LTeamID', 'OrdinalRank']], on=['Season', 'LTeamID'])
 
     df_concat = df_concat.rename(columns={'OrdinalRank_x': 'POM_W', 'OrdinalRank_y': 'POM_L'})
 
     # Merge SAG
-    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'SAG') & (df_winseeds_mass.Season < 2014)]
+    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'SAG')]
     df_concat = pd.merge(df_concat, df_temp[['Season', 'WTeamID', 'OrdinalRank']], how='left', on=['Season', 'WTeamID'])
 
-    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'SAG') & (df_lossseeds_mass.Season < 2014)]
+    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'SAG')]
     df_concat = pd.merge(df_concat, df_temp[['Season', 'LTeamID', 'OrdinalRank']], on=['Season', 'LTeamID'])
 
     df_concat = df_concat.rename(columns={'OrdinalRank_x': 'SAG_W', 'OrdinalRank_y': 'SAG_L'})
 
-    # Merge MAS
-    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'MAS') & (df_winseeds_mass.Season < 2014)]
+    # Merge TRP
+    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'TRP')]
+    print(df_temp)
     df_concat = pd.merge(df_concat, df_temp[['Season', 'WTeamID', 'OrdinalRank']], how='left', on=['Season', 'WTeamID'])
 
-    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'MAS') & (df_lossseeds_mass.Season < 2014)]
+    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'TRP')]
     df_concat = pd.merge(df_concat, df_temp[['Season', 'LTeamID', 'OrdinalRank']], on=['Season', 'LTeamID'])
 
-    df_concat = df_concat.rename(columns={'OrdinalRank_x': 'MAS_W', 'OrdinalRank_y': 'MAS_L'})
+    df_concat = df_concat.rename(columns={'OrdinalRank_x': 'TRP_W', 'OrdinalRank_y': 'TRP_L'})
+
+    # Merge TRK
+    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'TRK')]
+    df_concat = pd.merge(df_concat, df_temp[['Season', 'WTeamID', 'OrdinalRank']], how='left', on=['Season', 'WTeamID'])
+
+    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'TRK')]
+    df_concat = pd.merge(df_concat, df_temp[['Season', 'LTeamID', 'OrdinalRank']], on=['Season', 'LTeamID'])
+
+    df_concat = df_concat.rename(columns={'OrdinalRank_x': 'TRK_W', 'OrdinalRank_y': 'TRK_L'})
+
+    # Merge DOK
+    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'DOK')]
+    df_concat = pd.merge(df_concat, df_temp[['Season', 'WTeamID', 'OrdinalRank']], how='left', on=['Season', 'WTeamID'])
+
+    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'DOK')]
+    df_concat = pd.merge(df_concat, df_temp[['Season', 'LTeamID', 'OrdinalRank']], on=['Season', 'LTeamID'])
+
+    df_concat = df_concat.rename(columns={'OrdinalRank_x': 'DOK_W', 'OrdinalRank_y': 'DOK_L'})
 
     df_concat = pd.merge(left=df_concat, right=df_winseeds, how='left', on=['Season', 'WTeamID'])
     df_concat = pd.merge(left=df_concat, right=df_lossseeds, on=['Season', 'LTeamID'])
@@ -89,8 +108,12 @@ def main():
     df_wins['POM_L'] = df_concat['POM_L']
     df_wins['SAG_W'] = df_concat['SAG_W']
     df_wins['SAG_L'] = df_concat['SAG_L']
-    df_wins['MAS_W'] = df_concat['MAS_W']
-    df_wins['MAS_L'] = df_concat['MAS_L']
+    df_wins['TRK_W'] = df_concat['TRK_W']
+    df_wins['TRK_L'] = df_concat['TRK_L']
+    df_wins['TRP_W'] = df_concat['TRP_W']
+    df_wins['TRP_L'] = df_concat['TRP_L']
+    df_wins['DOK_W'] = df_concat['DOK_W']
+    df_wins['DOK_L'] = df_concat['DOK_L']
 
     df_wins['Result'] = 1
 
@@ -99,14 +122,18 @@ def main():
     df_losses['POM_L'] = df_concat['POM_W']
     df_losses['SAG_W'] = df_concat['SAG_L']
     df_losses['SAG_L'] = df_concat['SAG_W']
-    df_losses['MAS_W'] = df_concat['MAS_L']
-    df_losses['MAS_L'] = df_concat['MAS_W']
+    df_losses['TRK_W'] = df_concat['TRK_L']
+    df_losses['TRK_L'] = df_concat['TRK_W']
+    df_losses['TRP_W'] = df_concat['TRP_W']
+    df_losses['TRP_L'] = df_concat['TRP_L']
+    df_losses['DOK_W'] = df_concat['DOK_W']
+    df_losses['DOK_L'] = df_concat['DOK_L']
     df_losses['Result'] = 0
 
     df_predictions = pd.concat((df_wins, df_losses))
     df_predictions.head()
 
-    X_train = df_predictions[['POM_W', 'POM_L', 'SAG_W', 'SAG_L', 'MAS_W', 'MAS_L']].values.reshape(-1,6)
+    X_train = df_predictions[['POM_W', 'POM_L', 'SAG_W', 'SAG_L', 'TRK_W', 'TRK_L', 'TRP_W', 'TRP_L', 'DOK_W', 'DOK_L']].values.reshape(-1, 10)
     y_train = df_predictions.Result.values
     X_train, y_train = shuffle(X_train, y_train)
 
@@ -116,10 +143,10 @@ def main():
     clf.fit(X_train, y_train)
     print('Best log_loss: {:.4}, with best C: {}'.format(clf.best_score_, clf.best_params_['C']))
 
-    df_sample_sub = pd.read_csv(data_dir + 'SampleSubmissionStage1.csv')
+    df_sample_sub = pd.read_csv(data_dir + 'SampleSubmissionStage2.csv')
     n_test_games = len(df_sample_sub)
 
-    X_test = np.zeros(shape=(n_test_games, 6))
+    X_test = np.zeros(shape=(n_test_games, 10))
     t1_arr = []
     t2_arr = []
     # t1 = winning team, t2 = losing team -> prob t1 beats t2
@@ -141,9 +168,19 @@ def main():
         SAG_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
                            (df_massey.SystemName == 'SAG')].OrdinalRank.values[0]
         TRX_t1 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
-                           (df_massey.SystemName == 'MAS')].OrdinalRank.values[0]
+                           (df_massey.SystemName == 'TRK')].OrdinalRank.values[0]
         TRX_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
-                           (df_massey.SystemName == 'MAS')].OrdinalRank.values[0]
+                           (df_massey.SystemName == 'TRK')].OrdinalRank.values[0]
+
+        TRP_t1 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
+                           (df_massey.SystemName == 'TRP')].OrdinalRank.values[0]
+        TRP_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
+                           (df_massey.SystemName == 'TRP')].OrdinalRank.values[0]
+
+        DOX_t1 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
+                           (df_massey.SystemName == 'DOK')].OrdinalRank.values[0]
+        DOX_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
+                           (df_massey.SystemName == 'DOK')].OrdinalRank.values[0]
 
         X_test[ii, 0] = POM_t1
         X_test[ii, 1] = POM_t2
@@ -151,6 +188,12 @@ def main():
         X_test[ii, 3] = SAG_t2
         X_test[ii, 4] = TRX_t1
         X_test[ii, 5] = TRX_t2
+
+        X_test[ii, 6] = TRP_t1
+        X_test[ii, 7] = TRP_t2
+
+        X_test[ii, 8] = DOX_t1
+        X_test[ii, 9] = DOX_t2
 
     preds = clf.predict_proba(X_test)[:, :]
 
@@ -162,8 +205,8 @@ def main():
     df_sample_sub['t2'] = np.asarray(t2_arr)
     df_sample_sub.head()
 
-    df_sample_sub.to_csv('preds/apex_builder_v1.csv', index=False)
-    df_sub.to_csv('preds/apex_builder_v1.csv', index=False)
+    df_sample_sub.to_csv('preds/2019/apex_builder_v1.csv', index=False)
+    df_sub.to_csv('preds/2019/apex_builder_v1.csv', index=False)
 
 if __name__ == "__main__":
     main()
