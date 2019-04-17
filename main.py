@@ -27,7 +27,7 @@ def main():
     df_teams = pd.read_csv(data_dir + 'Teams.csv')
     df_massey = pd.read_csv(data_dir + 'MasseyOrdinals_thru_2019_day_128.csv')
 
-    # filter massey
+    # filter massey according to last day of season
     df_massey = df_massey[df_massey['RankingDayNum'] == 128]
     df_massey = df_massey[df_massey['SystemName'].isin(['POM', 'SAG', 'TRP', 'TRK', 'DOK'])]
 
@@ -71,7 +71,6 @@ def main():
 
     # Merge TRP
     df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'TRP')]
-    print(df_temp)
     df_concat = pd.merge(df_concat, df_temp[['Season', 'WTeamID', 'OrdinalRank']], how='left', on=['Season', 'WTeamID'])
 
     df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'TRP')]
@@ -134,18 +133,24 @@ def main():
     df_predictions.head()
 
     X_train = df_predictions[['POM_W', 'POM_L', 'SAG_W', 'SAG_L', 'TRK_W', 'TRK_L', 'TRP_W', 'TRP_L', 'DOK_W', 'DOK_L']].values.reshape(-1, 10)
-    y_train = df_predictions.Result.values
-    X_train, y_train = shuffle(X_train, y_train)
+    y_train = df_predictions.Result.values # train according to a 0 or 1 -> 1 winning and 0 losing
+    X_train, y_train = shuffle(X_train, y_train) # shuffle the training data
 
     logreg = LogisticRegression()
+
+    # use grid serach to identify the params for the regularization of paramaters
+    # use log loss to score the grid search because we are using logistic regression to evaluate a binary outcome
     params = {'C': np.logspace(start=-5, stop=3, num=9)}
     clf = GridSearchCV(logreg, params, scoring='neg_log_loss', refit=True)
+
+    # train the funcation
     clf.fit(X_train, y_train)
     print('Best log_loss: {:.4}, with best C: {}'.format(clf.best_score_, clf.best_params_['C']))
 
     df_sample_sub = pd.read_csv(data_dir + 'SampleSubmissionStage2.csv')
     n_test_games = len(df_sample_sub)
 
+    # predict the current year
     X_test = np.zeros(shape=(n_test_games, 10))
     t1_arr = []
     t2_arr = []
@@ -197,6 +202,7 @@ def main():
 
     preds = clf.predict_proba(X_test)[:, :]
 
+    # clip the predictions so do not get infinite log loss
     clipped_preds = np.clip(preds, 0.025, 0.975)
     actual_preds = [1] - clipped_preds
     df_sample_sub.Pred = actual_preds
