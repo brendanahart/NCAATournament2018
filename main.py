@@ -18,14 +18,14 @@ def get_year_t1_t2(ID):
     return (int(x) for x in ID.split('_'))
 
 def main():
-    data_dir = '2019/'
+    data_dir = 'ncaam-march-mania-2021/'
 
-    print(check_output(["ls", "2019/"]).decode("utf8"))
+    print(check_output(["ls", "ncaam-march-mania-2021/"]).decode("utf8"))
 
-    df_seeds = pd.read_csv(data_dir + 'NCAATourneySeeds.csv')
-    df_tour = pd.read_csv(data_dir + 'NCAATourneyCompactResults.csv')
-    df_teams = pd.read_csv(data_dir + 'Teams.csv')
-    df_massey = pd.read_csv(data_dir + 'MasseyOrdinals_thru_2019_day_128.csv')
+    df_seeds = pd.read_csv(data_dir + 'MNCAATourneySeeds.csv')
+    df_tour = pd.read_csv(data_dir + 'MNCAATourneyCompactResults.csv')
+    df_teams = pd.read_csv(data_dir + 'MTeams.csv')
+    df_massey = pd.read_csv(data_dir + 'MMasseyOrdinals.csv')
 
     # filter massey according to last day of season
     df_massey = df_massey[df_massey['RankingDayNum'] == 128]
@@ -136,7 +136,7 @@ def main():
     y_train = df_predictions.Result.values # train according to a 0 or 1 -> 1 winning and 0 losing
     X_train, y_train = shuffle(X_train, y_train) # shuffle the training data
 
-    logreg = LogisticRegression()
+    logreg = LogisticRegression(max_iter=10000)
 
     # use grid serach to identify the params for the regularization of paramaters
     # use log loss to score the grid search because we are using logistic regression to evaluate a binary outcome
@@ -147,7 +147,7 @@ def main():
     clf.fit(X_train, y_train)
     print('Best log_loss: {:.4}, with best C: {}'.format(clf.best_score_, clf.best_params_['C']))
 
-    df_sample_sub = pd.read_csv(data_dir + 'SampleSubmissionStage2.csv')
+    df_sample_sub = pd.read_csv(data_dir + 'MSampleSubmissionStage1.csv')
     n_test_games = len(df_sample_sub)
 
     # predict the current year
@@ -211,8 +211,9 @@ def main():
     df_sample_sub['t2'] = np.asarray(t2_arr)
     df_sample_sub.head()
 
-    df_sample_sub.to_csv('preds/2019/apex_builder_v1.csv', index=False)
-    df_sub.to_csv('preds/2019/apex_builder_v1.csv', index=False)
+    df_sample_sub.to_csv('preds/2021_train/apex_builder_v1.csv', index=False)
+    df_sub.to_csv('preds/2021_train/apex_builder_v1.csv', index=False)
+
 
 if __name__ == "__main__":
     main()
