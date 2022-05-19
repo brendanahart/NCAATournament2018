@@ -7,6 +7,8 @@ import sys
 
 from subprocess import check_output
 
+# https://www.markmoog.com/ranking_analysis - good source for ranking analysis
+
 def seed_to_int(seed):
     # Get just the digits from the seeding. Return as int
     s_int = int(seed[1:3])
@@ -17,19 +19,34 @@ def get_year_t1_t2(ID):
     """Return a tuple with ints `year`, `team1` and `team2`."""
     return (int(x) for x in ID.split('_'))
 
-def main():
-    data_dir = 'ncaam-march-mania-2021/'
 
-    print(check_output(["ls", "ncaam-march-mania-2021/"]).decode("utf8"))
+def logit(p):
+    return np.log(p / (1 - p))
+
+
+def make_spread_submission(logloss_sub_fn, rmse_sub_fn):
+    df = pd.read_csv(logloss_sub_fn)
+    df["Pred"] = 6 * logit(df.Pred)
+    df.to_csv(rmse_sub_fn, index=False)
+
+def main():
+    data_dir = 'ncaam-tournament-data-2022/'
+    extra_data_dir = 'extra-data-2022/'
+
+    print(check_output(["ls", data_dir]).decode("utf8"))
 
     df_seeds = pd.read_csv(data_dir + 'MNCAATourneySeeds.csv')
     df_tour = pd.read_csv(data_dir + 'MNCAATourneyCompactResults.csv')
     df_teams = pd.read_csv(data_dir + 'MTeams.csv')
-    df_massey = pd.read_csv(data_dir + 'MMasseyOrdinals.csv')
+    df_massey = pd.read_csv(data_dir + 'MMasseyOrdinals_thruDay128.csv')
+
+    df_massey_postseason = pd.read_csv(extra_data_dir + 'massey-postseason-data-2022.csv')
+    week = 134
+    evaluate_postseason = True
 
     # filter massey according to last day of season
     df_massey = df_massey[df_massey['RankingDayNum'] == 128]
-    df_massey = df_massey[df_massey['SystemName'].isin(['POM', 'SAG', 'TRP', 'TRK', 'DOK'])]
+    df_massey = df_massey[df_massey['SystemName'].isin(['POM', 'TRP', 'DOK', 'EBP', 'SAG'])]
 
     # view frame
     df_seeds.head()
@@ -78,14 +95,14 @@ def main():
 
     df_concat = df_concat.rename(columns={'OrdinalRank_x': 'TRP_W', 'OrdinalRank_y': 'TRP_L'})
 
-    # Merge TRK
-    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'TRK')]
+    # Merge EBP
+    df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'EBP')]
     df_concat = pd.merge(df_concat, df_temp[['Season', 'WTeamID', 'OrdinalRank']], how='left', on=['Season', 'WTeamID'])
 
-    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'TRK')]
+    df_temp = df_lossseeds_mass[(df_lossseeds_mass.SystemName == 'EBP')]
     df_concat = pd.merge(df_concat, df_temp[['Season', 'LTeamID', 'OrdinalRank']], on=['Season', 'LTeamID'])
 
-    df_concat = df_concat.rename(columns={'OrdinalRank_x': 'TRK_W', 'OrdinalRank_y': 'TRK_L'})
+    df_concat = df_concat.rename(columns={'OrdinalRank_x': 'EBP_W', 'OrdinalRank_y': 'EBP_L'})
 
     # Merge DOK
     df_temp = df_winseeds_mass[(df_winseeds_mass.SystemName == 'DOK')]
@@ -107,8 +124,8 @@ def main():
     df_wins['POM_L'] = df_concat['POM_L']
     df_wins['SAG_W'] = df_concat['SAG_W']
     df_wins['SAG_L'] = df_concat['SAG_L']
-    df_wins['TRK_W'] = df_concat['TRK_W']
-    df_wins['TRK_L'] = df_concat['TRK_L']
+    df_wins['EBP_W'] = df_concat['EBP_W']
+    df_wins['EBP_L'] = df_concat['EBP_L']
     df_wins['TRP_W'] = df_concat['TRP_W']
     df_wins['TRP_L'] = df_concat['TRP_L']
     df_wins['DOK_W'] = df_concat['DOK_W']
@@ -121,8 +138,8 @@ def main():
     df_losses['POM_L'] = df_concat['POM_W']
     df_losses['SAG_W'] = df_concat['SAG_L']
     df_losses['SAG_L'] = df_concat['SAG_W']
-    df_losses['TRK_W'] = df_concat['TRK_L']
-    df_losses['TRK_L'] = df_concat['TRK_W']
+    df_losses['EBP_W'] = df_concat['EBP_L']
+    df_losses['EBP_L'] = df_concat['EBP_W']
     df_losses['TRP_W'] = df_concat['TRP_W']
     df_losses['TRP_L'] = df_concat['TRP_L']
     df_losses['DOK_W'] = df_concat['DOK_W']
@@ -132,7 +149,7 @@ def main():
     df_predictions = pd.concat((df_wins, df_losses))
     df_predictions.head()
 
-    X_train = df_predictions[['POM_W', 'POM_L', 'SAG_W', 'SAG_L', 'TRK_W', 'TRK_L', 'TRP_W', 'TRP_L', 'DOK_W', 'DOK_L']].values.reshape(-1, 10)
+    X_train = df_predictions[['POM_W', 'POM_L', 'SAG_W', 'SAG_L', 'EBP_W', 'EBP_L', 'TRP_W', 'TRP_L', 'DOK_W', 'DOK_L']].values.reshape(-1, 10)
     y_train = df_predictions.Result.values # train according to a 0 or 1 -> 1 winning and 0 losing
     X_train, y_train = shuffle(X_train, y_train) # shuffle the training data
 
@@ -140,14 +157,18 @@ def main():
 
     # use grid serach to identify the params for the regularization of paramaters
     # use log loss to score the grid search because we are using logistic regression to evaluate a binary outcome
-    params = {'C': np.logspace(start=-5, stop=3, num=9)}
+    # TODO: run through a pipeline
+    params = {'C': np.logspace(start=-5, stop=5, num=50)}
     clf = GridSearchCV(logreg, params, scoring='neg_log_loss', refit=True)
 
     # train the funcation
     clf.fit(X_train, y_train)
     print('Best log_loss: {:.4}, with best C: {}'.format(clf.best_score_, clf.best_params_['C']))
 
-    df_sample_sub = pd.read_csv(data_dir + 'MSampleSubmissionStage1.csv')
+    df_sample_sub = pd.read_csv(data_dir + 'MSampleSubmissionStage2.csv')
+    if evaluate_postseason:
+        df_sample_sub = pd.read_csv(extra_data_dir + 'MSampleSubmissionStage3.csv')
+
     n_test_games = len(df_sample_sub)
 
     # predict the current year
@@ -155,6 +176,10 @@ def main():
     t1_arr = []
     t2_arr = []
     # t1 = winning team, t2 = losing team -> prob t1 beats t2
+
+    if evaluate_postseason:
+        df_massey = df_massey_postseason
+
     for ii, row in df_sample_sub.iterrows():
         year, t1, t2 = get_year_t1_t2(row.ID)
         t1_name = df_teams[(df_teams.TeamID == t1)].TeamName.values[0]
@@ -164,27 +189,27 @@ def main():
         t1_seed = df_seeds[(df_seeds.TeamID == t1) & (df_seeds.Season == year)].seed_int.values[0]
         t2_seed = df_seeds[(df_seeds.TeamID == t2) & (df_seeds.Season == year)].seed_int.values[0]
         print("Year: " + str(year) + " for teams: " + str(t1_name) + " vs " + str(t2_name))
-        POM_t1 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
+        POM_t1 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
                            (df_massey.SystemName == 'POM')].OrdinalRank.values[0]
-        POM_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
+        POM_t2 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
                            (df_massey.SystemName == 'POM')].OrdinalRank.values[0]
-        SAG_t1 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
+        SAG_t1 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
                            (df_massey.SystemName == 'SAG')].OrdinalRank.values[0]
-        SAG_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
+        SAG_t2 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
                            (df_massey.SystemName == 'SAG')].OrdinalRank.values[0]
-        TRX_t1 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
-                           (df_massey.SystemName == 'TRK')].OrdinalRank.values[0]
-        TRX_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
-                           (df_massey.SystemName == 'TRK')].OrdinalRank.values[0]
+        TRX_t1 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
+                           (df_massey.SystemName == 'EBP')].OrdinalRank.values[0]
+        TRX_t2 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
+                           (df_massey.SystemName == 'EBP')].OrdinalRank.values[0]
 
-        TRP_t1 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
+        TRP_t1 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
                            (df_massey.SystemName == 'TRP')].OrdinalRank.values[0]
-        TRP_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
+        TRP_t2 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
                            (df_massey.SystemName == 'TRP')].OrdinalRank.values[0]
 
-        DOX_t1 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
+        DOX_t1 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t1) &
                            (df_massey.SystemName == 'DOK')].OrdinalRank.values[0]
-        DOX_t2 = df_massey[(df_massey.RankingDayNum == 128) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
+        DOX_t2 = df_massey[(df_massey.RankingDayNum == week) & (df_massey.Season == year) & (df_massey.TeamID == t2) &
                            (df_massey.SystemName == 'DOK')].OrdinalRank.values[0]
 
         X_test[ii, 0] = POM_t1
@@ -205,14 +230,17 @@ def main():
     # clip the predictions so do not get infinite log loss
     clipped_preds = np.clip(preds, 0.025, 0.975)
     actual_preds = [1] - clipped_preds
-    df_sample_sub.Pred = actual_preds
+    df_sample_sub['Pred'] = actual_preds[:, 0]
     df_sub = df_sample_sub
-    df_sample_sub['t1'] = np.asarray(t1_arr)
-    df_sample_sub['t2'] = np.asarray(t2_arr)
+    df_sub['t1'] = np.asarray(t1_arr)
+    df_sub['t2'] = np.asarray(t2_arr)
     df_sample_sub.head()
+    df_sub.head()
 
-    df_sample_sub.to_csv('preds/2021_train/apex_builder_v1.csv', index=False)
-    df_sub.to_csv('preds/2021_train/apex_builder_v1.csv', index=False)
+    # df_sample_sub.to_csv('preds/2022/apex_builder_v1_submit.csv', index=False)
+    team_name_df_sub = 'preds/2022/apex_builder_v1.csv'
+    df_sub.to_csv(team_name_df_sub, index=False)
+    make_spread_submission(team_name_df_sub, 'preds/2022/rmse_sub_fn_v1.csv')
 
 
 if __name__ == "__main__":
