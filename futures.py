@@ -4,8 +4,8 @@ import pandas as pd
 
 def main():
     gender = 'M'
-    dir = 'ncaam-tournament-data-2022/'
-    season = 2022
+    dir = 'ncaam-tournament-data-2023/'
+    season = 2023
 
     # regions -> W, X, Y, Z
     # Games -> R1(Region, game number) ie R1W5 (Round 1 W Region Game #5)

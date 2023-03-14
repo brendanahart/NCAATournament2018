@@ -73,7 +73,7 @@ class Team:
         return f'{self.seed} {self.name} - TeamID: {self.id}'
 
 
-class Submission:
+class fSubmission:
     '''
     Submission is a container for the Prediction class and with
     a method that helps to retrieve predictions based on
