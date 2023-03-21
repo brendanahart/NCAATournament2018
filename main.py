@@ -74,8 +74,8 @@ def main():
     df_massey = pd.read_csv(data_dir + 'MMasseyOrdinals_thru_Season2023_Day133.csv')
 
     df_massey_postseason = pd.read_csv(extra_data_dir + 'massey-postseason-data-2023.csv')
-    week = 133
-    evaluate_postseason = False
+    week = 138
+    evaluate_postseason = True
 
     # filter massey according to last day of season
     df_massey = df_massey[df_massey['RankingDayNum'] == 133]
@@ -309,9 +309,9 @@ def main():
     df_sub.head()
 
     # df_sample_sub.to_csv('preds/2022/apex_builder_v1_submit.csv', index=False)
-    team_name_df_sub = 'preds/2023/apex_builder_v1_xg.csv'
+    team_name_df_sub = 'preds/2023/apex_builder_v1_post.csv'
     df_sub.to_csv(team_name_df_sub, index=False)
-    make_spread_submission(team_name_df_sub, 'preds/2023/rmse_sub_fn_v1_xg.csv')
+    make_spread_submission(team_name_df_sub, 'preds/2023/rmse_sub_fn_v1_post.csv')
 
 
 if __name__ == "__main__":
